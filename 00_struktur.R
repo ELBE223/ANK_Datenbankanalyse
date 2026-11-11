@@ -13,8 +13,16 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(DBI, odbc, writexl)
 
+# Projektordner und lokale Konfiguration prüfen --------------------------------
+if (!file.exists("ANK_Datenbankanalyse.Rproj")) {
+  stop("Falscher Arbeitsordner: ", getwd(), "\nProjekt über ",
+       "ANK_Datenbankanalyse.Rproj öffnen und erneut Source klicken.", call. = FALSE)
+}
 if (!file.exists("config_lokal.R")) {
-  stop("config_lokal.R fehlt: config_vorlage.R kopieren und DB_PFAD eintragen.")
+  file.copy("config_vorlage.R", "config_lokal.R")
+  if (interactive()) file.edit("config_lokal.R")
+  stop("config_lokal.R wurde angelegt und geöffnet: DB_PFAD eintragen, ",
+       "speichern und erneut Source klicken.", call. = FALSE)
 }
 source("config_lokal.R")   # setzt DB_PFAD
 source("R/funktionen.R")

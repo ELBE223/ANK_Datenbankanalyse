@@ -42,8 +42,9 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
 3. **Pakete:** nichts zu tun – jedes Skript installiert und lädt seine Pakete
    selbst mit `pacman::p_load()` (siehe Konventionen).
 
-4. **Lokale Konfiguration:** `config_vorlage.R` kopieren, als `config_lokal.R`
-   speichern und `DB_PFAD` eintragen.
+4. **Lokale Konfiguration:** Beim ersten Source legt `00_struktur.R` die Datei
+   `config_lokal.R` (Kopie von `config_vorlage.R`) an und öffnet sie.
+   `DB_PFAD` eintragen, speichern, erneut Source klicken.
 
 5. **Beziehungen lesbar machen** (nur nötig, damit `00_struktur.R` die in Access
    definierten Beziehungen findet; am besten an einer Kopie der DB):
@@ -94,6 +95,9 @@ Der Access-ODBC-Treiber gibt Primärschlüssel nicht direkt aus. Eine exakte
 | Meldung | Ursache / Lösung |
 |---------|------------------|
 | `ODBC-Treiber ... nicht gefunden` | 64-Bit Access Database Engine fehlt (Einrichtung, Punkt 1) |
-| `config_lokal.R fehlt` | Einrichtung, Punkt 4 |
+| `Falscher Arbeitsordner` | Projekt per Doppelklick auf `ANK_Datenbankanalyse.Rproj` öffnen |
+| `config_lokal.R wurde angelegt` | `DB_PFAD` in der geöffneten Datei eintragen, speichern, erneut Source |
+| `Datenbank nicht gefunden` | Pfad in `config_lokal.R` prüfen (Schrägstriche `/`, Dateiendung `.accdb`) |
+| `Paket ... wurde unter R Version ... erstellt` | harmlos, kann ignoriert werden |
 | `MSysRelationships ist nicht lesbar` | Einrichtung, Punkt 5 – die übrigen Ergebnisse sind trotzdem vollständig |
 | Datei gesperrt / `.laccdb` vorhanden | Access schließen und erneut ausführen |

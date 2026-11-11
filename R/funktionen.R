@@ -11,7 +11,11 @@ ACCESS_TREIBER <- "Microsoft Access Driver (*.mdb, *.accdb)"
 # Verbindung öffnen -----------------------------------------------------------
 # Prüft vorher, ob Datei und ODBC-Treiber vorhanden sind.
 db_verbinden <- function(pfad) {
-  pfad <- normalizePath(pfad, winslash = "\\", mustWork = TRUE)
+  if (!file.exists(pfad)) {
+    stop("Datenbank nicht gefunden: ", pfad,
+         "\nDB_PFAD in config_lokal.R prüfen.", call. = FALSE)
+  }
+  pfad <- normalizePath(pfad, winslash = "\\")
   if (!ACCESS_TREIBER %in% odbc::odbcListDrivers()$name) {
     stop("ODBC-Treiber '", ACCESS_TREIBER, "' nicht gefunden. ",
          "Benötigt wird die 64-Bit 'Microsoft Access Database Engine' ",
