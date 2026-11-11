@@ -16,14 +16,16 @@ ANK_Datenbankanalyse/
 ├── config_vorlage.R             Vorlage -> als config_lokal.R kopieren
 ├── 00_struktur.R                Schritt 0: Struktur auslesen
 ├── 01_erd.R                     Schritt 1: ER-Diagramm
+├── 02_pruefung.R                Schritt 2: Prüfungen mit testthat
+├── tests/testthat/              die Prüfregeln (eine Datei je Bereich)
 ├── R/
 │   ├── funktionen.R             wiederverwendbare Hilfsfunktionen
 │   └── dao_metadaten.ps1        liest Beziehungen/Primärschlüssel über DAO
 └── Output/                      Ergebnisse (lokal, nicht in Git)
 ```
 
-Geplant: `02_profiling.R` (Datenqualität), `tests/testthat/` (automatisierte
-Prüfungen), HTML-Prüfbericht.
+Geplant: Profiling der Inhalte (leere Felder, Wertebereiche, Datumsangaben),
+HTML-Prüfbericht.
 
 ## Einrichtung (einmalig)
 
@@ -126,6 +128,24 @@ und wird als `Output/01_erd.html` gespeichert (im Browser öffnen, zoomen).
 
 Zusätzlich: `Output/01_beziehungen_abgeleitet.csv` (fk_-Spalten ohne Beziehung
 in Access) und `Output/01_erd.gv` (Diagramm als Graphviz-Text).
+
+## Schritt 2: Prüfungen mit testthat
+
+`02_pruefung.R` öffnen und **Source** klicken. Das Skript liest die
+Schlüsselspalten aus der Datenbank, führt alle Prüfregeln aus und schreibt
+`Output/02_pruefergebnis.xlsx` (jede Prüfung mit Status OK/FEHLER und Meldung,
+z. B. „12 Verweise ohne Datensatz in wahlkreis_btw21, z. B. 3, 7, 9“).
+
+| Datei in `tests/testthat/` | prüft |
+|---|---|
+| `test-1_struktur.R` | jede Tabelle hat einen Primärschlüssel, keine temporären Tabellen, Namensregel `fk_<tabelle>_id`, jede fk_-Spalte hat eine Beziehung, gleiche Datentypen |
+| `test-2_primaerschluessel.R` | je Tabelle: Primärschlüssel eindeutig und nie leer |
+| `test-3_fremdschluessel.R` | je Beziehung: jeder Verweis findet seinen Datensatz (auch abgeleitete Beziehungen) |
+| `test-4_fachlich.R` | fachliche Regeln, z. B. 1:1-Beziehungen, leere `_tmp`-Spalten – **hier eigene Regeln ergänzen** |
+
+Die Prüfungen 1–3 entstehen automatisch aus der Strukturanalyse und passen
+sich an, wenn sich die Datenbank ändert. Die Tests immer über
+`02_pruefung.R` starten, nicht einzeln.
 
 ## Typische Fehler
 

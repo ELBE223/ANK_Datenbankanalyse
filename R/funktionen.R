@@ -292,3 +292,67 @@ erd_dot <- function(objekte, beziehungen, spalten, farben) {
     'edge  [dir=both, arrowtail=tee, arrowhead=crow, arrowsize=0.7, penwidth=1.1];',
     knoten, kanten, legende, "}"), collapse = "\n")
 }
+
+
+# =============================================================================
+# Prüfungen (02_pruefung.R und tests/testthat/)
+# =============================================================================
+
+# Prüfumfang festlegen ----------------------------------------------------------
+# Tabellen (ohne temporäre), Primärschlüssel und Beziehungen: aus Access plus
+# aus fk_-Spaltennamen abgeleitete (ohne *_hist-Tabellen, das sind Kopien).
+pruefumfang <- function(struktur) {
+  o  <- struktur$Objekte
+  sp <- struktur$Spalten
+  tabellen <- o$objekt[o$typ == "Tabelle"]
+  access <- struktur$Beziehungen
+  abg    <- beziehungen_ableiten(sp, access, tabellen[!endsWith(tabellen, "_hist")])
+  list(
+    tabellen    = tabellen,
+    temporaer   = o$objekt[o$typ == "Temporaer"],
+    spalten     = sp[sp$objekt %in% tabellen, ],
+    pk          = sp[sp$objekt %in% tabellen & grepl("PK", sp$schluessel), c("objekt", "spalte")],
+    beziehungen = rbind(cbind(access, quelle = rep("Access", nrow(access))),
+                        cbind(abg, quelle = rep("abgeleitet", nrow(abg))))
+  )
+}
+
+
+# Schlüsselspalten aus der Datenbank lesen --------------------------------------
+# Je Tabelle nur Primärschlüssel, Beziehungs- und fk_-Spalten (schnell, klein).
+# Ergebnis: Liste mit einem data.frame je Tabelle (NULL, wenn nicht lesbar).
+schluessel_lesen <- function(con, umfang) {
+  sp <- umfang$spalten
+  b  <- umfang$beziehungen
+  noetig <- unique(rbind(
+    umfang$pk,
+    data.frame(objekt = b$pk_tabelle, spalte = b$pk_spalte),
+    data.frame(objekt = b$fk_tabelle, spalte = b$fk_spalte),
+    sp[startsWith(sp$spalte, "fk_"), c("objekt", "spalte")]
+  ))
+  stats::setNames(lapply(umfang$tabellen, function(t) {
+    s <- noetig$spalte[noetig$objekt == t]
+    if (length(s) == 0) return(NULL)
+    sql <- paste0("SELECT ", paste0("[", s, "]", collapse = ", "), " FROM [", t, "]")
+    tryCatch(DBI::dbGetQuery(con, sql), error = function(e) NULL)
+  }), umfang$tabellen)
+}
+
+
+# Prüfbericht aus dem testthat-Ergebnis -----------------------------------------
+# Eine Zeile je Prüfung: Bereich (Testdatei), Prüfung, Status, Meldung.
+pruef_bericht <- function(ergebnis) {
+  zeilen <- lapply(ergebnis, function(t) {
+    fehler <- Filter(function(e) inherits(e, c("expectation_failure", "expectation_error")),
+                     t$results)
+    skip <- any(vapply(t$results, inherits, logical(1), "expectation_skip"))
+    data.frame(
+      bereich  = sub("^test-\\d+_(.*)\\.R$", "\\1", basename(t$file)),
+      pruefung = t$test,
+      status   = if (length(fehler)) "FEHLER" else if (skip) "uebersprungen" else "OK",
+      meldung  = gsub("\\s*\n\\s*", " ",
+                      paste(vapply(fehler, conditionMessage, character(1)), collapse = " | "))
+    )
+  })
+  do.call(rbind, zeilen)
+}
