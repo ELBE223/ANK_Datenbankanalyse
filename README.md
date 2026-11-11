@@ -51,7 +51,10 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
    Vorher prüfen, ob es überhaupt welche gibt: *Datenbanktools → Beziehungen →
    Alle Beziehungen*. Bleibt das Fenster leer, entfällt dieser Schritt.
 
-   **Weg A – Leseberechtigung (braucht Makros):** in der gelben Leiste
+   **Weg A – Leseberechtigung (braucht Makros):** Fehlt „Inhalt aktivieren“,
+   ist die Datei meist als „aus dem Internet“ gesperrt: Access schließen,
+   im Explorer Rechtsklick auf die `.accdb` → *Eigenschaften* → Haken bei
+   **Zulassen** → OK. Dann in der gelben Leiste
    **Inhalt aktivieren** oder den DB-Ordner als vertrauenswürdig eintragen
    (*Datei → Optionen → Trust Center → Einstellungen für das Trust Center →
    Vertrauenswürdige Speicherorte → Neuen Speicherort hinzufügen*), Access neu
@@ -113,5 +116,5 @@ Der Access-ODBC-Treiber gibt Primärschlüssel nicht direkt aus. Eine exakte
 | `Datenbank nicht gefunden` | Pfad in `config_lokal.R` prüfen (Schrägstriche `/`, Dateiendung `.accdb`) |
 | `Paket ... wurde unter R Version ... erstellt` | harmlos, kann ignoriert werden |
 | `Beziehungen fehlen` | Einrichtung, Punkt 5 – die übrigen Ergebnisse sind trotzdem vollständig |
-| Access: `Die Makros in diesem Projekt sind deaktiviert` | Makros gesperrt -> Einrichtung Punkt 5, Weg B (Excel-Export) |
+| Access: `Die Makros in diesem Projekt sind deaktiviert` | Datei-Eigenschaften → **Zulassen** (Punkt 5, Weg A); sonst Weg B (Excel-Export) |
 | Datei gesperrt / `.laccdb` vorhanden | Access schließen und erneut ausführen |
