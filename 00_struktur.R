@@ -54,6 +54,8 @@ writexl::write_xlsx(struktur, "Output/00_struktur.xlsx")
 cat("\nDatenbank:  ", basename(DB_PFAD),
     "\nObjekte:    ", paste(names(table(objekte$typ)), table(objekte$typ),
                             sep = " = ", collapse = ", "),
+    "\nLeer:       ", sum(objekte$datensaetze == 0, na.rm = TRUE),
+    "Tabellen ohne Datensätze",
     "\nSpalten:    ", nrow(spalten),
     "\nBeziehungen:", nrow(beziehungen),
     "\nErgebnis:    Output/00_struktur.xlsx\n\n")

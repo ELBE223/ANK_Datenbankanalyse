@@ -33,13 +33,17 @@ db_verbinden <- function(pfad) {
 #                           VIEW    = (Auswahl-)Abfrage
 #                           SYNONYM = verknüpfte Tabelle
 # Systemtabellen ("MSys...") haben einen eigenen Typ und fallen dadurch weg.
+# Tabellen mit "~" am Anfang (z. B. ~TMPCLP...) sind Reste aus Kopieren/
+# Einfügen in Access -> als "Temporaer" markiert, gehören nicht zur Logik.
 db_objekte <- function(con) {
   typen <- c(TABLE = "Tabelle", VIEW = "Abfrage", SYNONYM = "Verknuepfte Tabelle")
   liste <- lapply(names(typen), function(t) {
     namen <- DBI::dbListTables(con, table_type = t)
     if (length(namen) > 0) data.frame(objekt = namen, typ = typen[[t]])
   })
-  do.call(rbind, liste)
+  obj <- do.call(rbind, liste)
+  obj$typ[startsWith(obj$objekt, "~")] <- "Temporaer"
+  obj
 }
 
 
