@@ -1,0 +1,20 @@
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# Lokale Konfiguration (Pfade, Zugangsdaten)
+config_lokal.R
+.Renviron
+
+# Datenbanken und Access-Sperrdateien – niemals ins Repository
+*.accdb
+*.mdb
+*.laccdb
+*.ldb
+
+# Ergebnisse enthalten Datenbank-Metadaten -> bleiben lokal.
+# Einzelne freigegebene Dateien bei Bedarf gezielt mit "git add -f" hinzufügen.
+Output/*
+!Output/.gitkeep
