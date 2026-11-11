@@ -39,10 +39,8 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
    URL: `https://github.com/ELBE223/ANK_Datenbankanalyse.git`
    Zielordner z. B. `C:/Users/<name>/R/` (nicht in denselben Ordner wie die DB).
 
-3. **Pakete installieren:**
-   ```r
-   install.packages(c("DBI", "odbc", "writexl", "testthat"))
-   ```
+3. **Pakete:** nichts zu tun – jedes Skript installiert und lädt seine Pakete
+   selbst mit `pacman::p_load()` (siehe Konventionen).
 
 4. **Lokale Konfiguration:** `config_vorlage.R` kopieren, als `config_lokal.R`
    speichern und `DB_PFAD` eintragen.
@@ -54,6 +52,20 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
    ```vb
    CurrentProject.Connection.Execute "GRANT SELECT ON MSysRelationships TO Admin"
    ```
+
+## Konventionen
+
+- **Jedes Skript wird komplett mit Source gestartet** – Button *Source* oder
+  `Strg + Umschalt + S`, alternativ in der Konsole `source("00_struktur.R")`.
+  Kein zeilenweises Ausführen nötig.
+- **Immer über das RStudio-Projekt arbeiten** (`ANK_Datenbankanalyse.Rproj`),
+  damit der Projektordner das Arbeitsverzeichnis ist.
+- **Pakete immer mit pacman:** am Anfang jedes Skripts
+  ```r
+  if (!require("pacman")) install.packages("pacman")
+  pacman::p_load(DBI, odbc, writexl)
+  ```
+  Fehlende Pakete werden automatisch installiert, vorhandene nur geladen.
 
 ## Schritt 0: Struktur auslesen
 

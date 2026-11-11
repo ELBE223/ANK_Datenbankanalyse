@@ -6,7 +6,12 @@
 # Ergebnis: Output/00_struktur.xlsx  (Blätter: Objekte, Spalten, Beziehungen)
 #           Output/00_struktur.rds   (dieselben Daten für die nächsten Skripte)
 # Hinweis:  Die Datenbank wird nur gelesen, nicht verändert.
+# Start:    in RStudio "Source" klicken (Strg + Umschalt + S)
 # =============================================================================
+
+# Pakete: pacman installiert fehlende Pakete automatisch und lädt sie ---------
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(DBI, odbc, writexl)
 
 if (!file.exists("config_lokal.R")) {
   stop("config_lokal.R fehlt: config_vorlage.R kopieren und DB_PFAD eintragen.")
