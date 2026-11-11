@@ -84,10 +84,12 @@ db_spalten <- function(objekt, con) {
 
 
 # Beziehungen -----------------------------------------------------------------
-# Liest die in Access definierten Beziehungen aus der Systemtabelle
-# MSysRelationships. Dafür ist einmalig eine Leseberechtigung nötig (README).
+# Die in Access definierten Beziehungen stehen in der Systemtabelle
+# MSysRelationships. Zwei Quellen (README, Einrichtung Punkt 5):
+#   1. direkt aus der Datenbank (braucht einmalige Leseberechtigung)
+#   2. Excel-Export dieser Tabelle aus Access (wenn Makros gesperrt sind)
 #   pk_* = "1"-Seite (Primärschlüssel), fk_* = "n"-Seite (Fremdschlüssel)
-db_beziehungen <- function(con) {
+db_beziehungen <- function(con, export = NULL) {
   leer <- data.frame(
     beziehung = character(), pk_tabelle = character(), pk_spalte = character(),
     fk_tabelle = character(), fk_spalte = character(), art = character(),
@@ -97,12 +99,17 @@ db_beziehungen <- function(con) {
   sql <- "SELECT szRelationship, szReferencedObject, szReferencedColumn,
                  szObject, szColumn, grbit
           FROM MSysRelationships"
-  b <- tryCatch(DBI::dbGetQuery(con, sql), error = function(e) {
-    warning("MSysRelationships ist nicht lesbar - Beziehungen fehlen. ",
-            "Einmalige Freigabe in Access siehe README.", call. = FALSE)
-    NULL
-  })
-  if (is.null(b)) return(leer)
+  b <- tryCatch(DBI::dbGetQuery(con, sql), error = function(e) NULL)
+  if (is.null(b) && !is.null(export) && file.exists(export)) {
+    message("Beziehungen gelesen aus Excel-Export: ", export)
+    b <- as.data.frame(readxl::read_excel(export))
+  }
+  if (is.null(b)) {
+    warning("Beziehungen fehlen: MSysRelationships nicht lesbar und kein ",
+            "Excel-Export gefunden. Siehe README, Einrichtung Punkt 5.",
+            call. = FALSE)
+    return(leer)
+  }
 
   b <- b[!grepl("^MSys", b$szObject) & !grepl("^MSys", b$szReferencedObject), ]
   if (nrow(b) == 0) return(leer)

@@ -50,13 +50,22 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
    definierten Beziehungen findet; am besten an einer Kopie der DB).
    Vorher prüfen, ob es überhaupt welche gibt: *Datenbanktools → Beziehungen →
    Alle Beziehungen*. Bleibt das Fenster leer, entfällt dieser Schritt.
-   Sonst: in der gelben Leiste **Inhalt aktivieren** (oder *Datei →
-   Informationen → Inhalt aktivieren*) → `Alt + F11` → `Strg + G`
-   (Direktfenster) → folgende Zeile eingeben und mit Enter ausführen →
-   Access schließen.
+
+   **Weg A – Leseberechtigung (braucht Makros):** in der gelben Leiste
+   **Inhalt aktivieren** oder den DB-Ordner als vertrauenswürdig eintragen
+   (*Datei → Optionen → Trust Center → Einstellungen für das Trust Center →
+   Vertrauenswürdige Speicherorte → Neuen Speicherort hinzufügen*), Access neu
+   öffnen → `Alt + F11` → `Strg + G` (Direktfenster) → Zeile ausführen:
    ```vb
    CurrentProject.Connection.Execute "GRANT SELECT ON MSysRelationships TO Admin"
    ```
+
+   **Weg B – Excel-Export (ohne Makros, funktioniert immer):**
+   *Erstellen → Abfrageentwurf* → *SQL-Ansicht* → Text ersetzen durch
+   `SELECT * FROM MSysRelationships;` → *Ausführen* → `Strg + S`, Name
+   `beziehungen` → *Externe Daten → Exportieren → Excel* → als
+   **`beziehungen.xlsx` im selben Ordner wie die Datenbank** speichern.
+   `00_struktur.R` liest diese Datei automatisch, wenn Weg A fehlt.
 
 ## Konventionen
 
@@ -103,6 +112,6 @@ Der Access-ODBC-Treiber gibt Primärschlüssel nicht direkt aus. Eine exakte
 | `config_lokal.R wurde angelegt` | `DB_PFAD` in der geöffneten Datei eintragen, speichern, erneut Source |
 | `Datenbank nicht gefunden` | Pfad in `config_lokal.R` prüfen (Schrägstriche `/`, Dateiendung `.accdb`) |
 | `Paket ... wurde unter R Version ... erstellt` | harmlos, kann ignoriert werden |
-| `MSysRelationships ist nicht lesbar` | Einrichtung, Punkt 5 – die übrigen Ergebnisse sind trotzdem vollständig |
-| Access: `Die Makros in diesem Projekt sind deaktiviert` | Zuerst **Inhalt aktivieren** (gelbe Leiste), dann die GRANT-Zeile erneut ausführen |
+| `Beziehungen fehlen` | Einrichtung, Punkt 5 – die übrigen Ergebnisse sind trotzdem vollständig |
+| Access: `Die Makros in diesem Projekt sind deaktiviert` | Makros gesperrt -> Einrichtung Punkt 5, Weg B (Excel-Export) |
 | Datei gesperrt / `.laccdb` vorhanden | Access schließen und erneut ausführen |

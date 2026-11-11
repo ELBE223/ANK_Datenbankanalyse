@@ -11,7 +11,7 @@
 
 # Pakete: pacman installiert fehlende Pakete automatisch und lädt sie ---------
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(DBI, odbc, writexl)
+pacman::p_load(DBI, odbc, writexl, readxl)
 
 # Projektordner und lokale Konfiguration prüfen --------------------------------
 if (!file.exists("ANK_Datenbankanalyse.Rproj")) {
@@ -39,7 +39,8 @@ spalten <- do.call(rbind, lapply(objekte$objekt, db_spalten, con = con))
 objekte$spalten <- as.vector(table(factor(spalten$objekt, levels = objekte$objekt)))
 
 # 3) Beziehungen: in Access definierte Verknüpfungen (PK -> FK) ---------------
-beziehungen <- db_beziehungen(con)
+#    Ersatzquelle: "beziehungen.xlsx" im Ordner der Datenbank (README, Punkt 5)
+beziehungen <- db_beziehungen(con, export = file.path(dirname(DB_PFAD), "beziehungen.xlsx"))
 spalten$schluessel <- schluessel_hinweis(spalten, beziehungen)
 
 DBI::dbDisconnect(con)
