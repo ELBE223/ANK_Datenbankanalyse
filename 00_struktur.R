@@ -11,7 +11,7 @@
 
 # Pakete: pacman installiert fehlende Pakete automatisch und lädt sie ---------
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(DBI, odbc, writexl, readxl)
+pacman::p_load(DBI, odbc, writexl, readxl, jsonlite)
 
 # Projektordner und lokale Konfiguration prüfen --------------------------------
 if (!file.exists("ANK_Datenbankanalyse.Rproj")) {
@@ -38,10 +38,12 @@ objekte$datensaetze <- vapply(objekte$objekt, db_anzahl, numeric(1),
 spalten <- do.call(rbind, lapply(objekte$objekt, db_spalten, con = con))
 objekte$spalten <- as.vector(table(factor(spalten$objekt, levels = objekte$objekt)))
 
-# 3) Beziehungen: in Access definierte Verknüpfungen (PK -> FK) ---------------
-#    Ersatzquelle: "beziehungen.xlsx" im Ordner der Datenbank (README, Punkt 5)
-beziehungen <- db_beziehungen(con, export = file.path(dirname(DB_PFAD), "beziehungen.xlsx"))
-spalten$schluessel <- schluessel_hinweis(spalten, beziehungen)
+# 3) Beziehungen und Primärschlüssel ------------------------------------------
+#    über DAO (Access-Schnittstelle); Ersatz: Systemtabelle oder Excel-Export
+dao <- db_dao(DB_PFAD)
+beziehungen <- db_beziehungen(con, dao = dao,
+                              export = file.path(dirname(DB_PFAD), "beziehungen.xlsx"))
+spalten$schluessel <- schluessel_hinweis(spalten, beziehungen, pk = dao$pk)
 
 DBI::dbDisconnect(con)
 
@@ -59,6 +61,8 @@ cat("\nDatenbank:  ", basename(DB_PFAD),
     "Tabellen ohne Datensätze",
     "\nSpalten:    ", nrow(spalten),
     "\nBeziehungen:", nrow(beziehungen),
+    "\nPrimärschl.:", if (is.null(dao)) "nicht verfügbar (nur Hinweise)" else
+                        paste(length(unique(dao$pk$tabelle)), "Tabellen mit Primärschlüssel"),
     "\nErgebnis:    Output/00_struktur.xlsx\n\n")
 print(objekte[order(-objekte$datensaetze), ], row.names = FALSE)
 

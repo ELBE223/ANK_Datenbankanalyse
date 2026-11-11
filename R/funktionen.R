@@ -83,13 +83,53 @@ db_spalten <- function(objekt, con) {
 }
 
 
+# Beziehungen und Primärschlüssel über DAO ------------------------------------
+# DAO ist die Access-eigene Schnittstelle. R startet dafür PowerShell mit dem
+# Skript R/dao_metadaten.ps1 – ohne Makros, ohne Freigabe, schreibgeschützt.
+# Ergebnis: list(beziehungen, pk) oder NULL, wenn DAO nicht verfügbar ist.
+db_dao <- function(pfad, skript = "R/dao_metadaten.ps1") {
+  ps <- paste(readLines(skript, encoding = "UTF-8"), collapse = "\n")
+  ps <- gsub("{{PFAD}}", gsub("'", "''", normalizePath(pfad)), ps, fixed = TRUE)
+  z  <- powershell_ausfuehren(ps)
+
+  if (!is.null(attr(z, "status")) || any(startsWith(z, "ERR\t"))) {
+    message("DAO nicht verfügbar: ", paste(sub("^ERR\t", "", head(z, 3)), collapse = " "))
+    return(NULL)
+  }
+  felder <- function(typ, namen) {
+    x <- strsplit(z[startsWith(z, paste0(typ, "\t"))], "\t", fixed = TRUE)
+    m <- matrix(c(character(), unlist(lapply(x, `[`, -1))), ncol = length(namen), byrow = TRUE)
+    stats::setNames(as.data.frame(m), namen)
+  }
+  message("Beziehungen und Primärschlüssel über DAO gelesen.")
+  list(
+    beziehungen = felder("REL", c("szRelationship", "szReferencedObject", "szReferencedColumn",
+                                  "szObject", "szColumn", "grbit")),
+    pk          = felder("PK", c("tabelle", "spalte"))
+  )
+}
+
+# PowerShell-Befehl ausführen und Ausgabezeilen zurückgeben. -EncodedCommand
+# umgeht Probleme mit Anführungszeichen und der Skript-Ausführungsrichtlinie.
+powershell_ausfuehren <- function(ps, timeout = 120) {
+  if (.Platform$OS.type != "windows") return(structure("nur unter Windows", status = 1))
+  enc <- gsub("\n", "", jsonlite::base64_enc(iconv(ps, "UTF-8", "UTF-16LE", toRaw = TRUE)[[1]]))
+  tryCatch(
+    suppressWarnings(system2("powershell",
+      c("-NoProfile", "-NonInteractive", "-EncodedCommand", enc),
+      stdout = TRUE, stderr = TRUE, timeout = timeout)),
+    error = function(e) structure(conditionMessage(e), status = 1)
+  )
+}
+
+
 # Beziehungen -----------------------------------------------------------------
-# Die in Access definierten Beziehungen stehen in der Systemtabelle
-# MSysRelationships. Zwei Quellen (README, Einrichtung Punkt 5):
-#   1. direkt aus der Datenbank (braucht einmalige Leseberechtigung)
-#   2. Excel-Export dieser Tabelle aus Access (wenn Makros gesperrt sind)
+# Die in Access definierten Beziehungen. Quellen, in dieser Reihenfolge:
+#   1. DAO (siehe db_dao) – der Normalfall
+#   2. Systemtabelle MSysRelationships (braucht einmalige Leseberechtigung)
+#   3. Excel-Export dieser Systemtabelle aus Access (README, Punkt 5)
 #   pk_* = "1"-Seite (Primärschlüssel), fk_* = "n"-Seite (Fremdschlüssel)
-db_beziehungen <- function(con, export = NULL) {
+db_beziehungen <- function(con, dao = NULL, export = NULL) {
   leer <- data.frame(
     beziehung = character(), pk_tabelle = character(), pk_spalte = character(),
     fk_tabelle = character(), fk_spalte = character(), art = character(),
@@ -99,14 +139,15 @@ db_beziehungen <- function(con, export = NULL) {
   sql <- "SELECT szRelationship, szReferencedObject, szReferencedColumn,
                  szObject, szColumn, grbit
           FROM MSysRelationships"
-  b <- tryCatch(DBI::dbGetQuery(con, sql), error = function(e) NULL)
+  b <- dao$beziehungen
+  if (is.null(b)) b <- tryCatch(DBI::dbGetQuery(con, sql), error = function(e) NULL)
   if (is.null(b) && !is.null(export) && file.exists(export)) {
     message("Beziehungen gelesen aus Excel-Export: ", export)
     b <- as.data.frame(readxl::read_excel(export))
   }
   if (is.null(b)) {
-    warning("Beziehungen fehlen: MSysRelationships nicht lesbar und kein ",
-            "Excel-Export gefunden. Siehe README, Einrichtung Punkt 5.",
+    warning("Beziehungen fehlen: weder DAO noch MSysRelationships lesbar und ",
+            "kein Excel-Export gefunden. Siehe README, Einrichtung Punkt 5.",
             call. = FALSE)
     return(leer)
   }
@@ -132,13 +173,16 @@ db_beziehungen <- function(con, export = NULL) {
 
 
 # Schlüssel-Hinweise je Spalte ------------------------------------------------
-# Markiert AutoWert-Spalten sowie Spalten, die in Beziehungen als
-# Primärschlüssel (PK) oder Fremdschlüssel (FK) vorkommen.
-schluessel_hinweis <- function(spalten, beziehungen) {
-  id <- paste(spalten$objekt, spalten$spalte, sep = "|")
+# PK = Primärschlüssel: aus DAO (exakt) oder, falls nicht verfügbar, die Spalten,
+#      auf die eine Beziehung verweist (Näherung).
+# FK = Fremdschlüssel laut Beziehung, AutoWert = Access-Datentyp COUNTER.
+schluessel_hinweis <- function(spalten, beziehungen, pk = NULL) {
+  id    <- paste(spalten$objekt, spalten$spalte, sep = "|")
+  pk_id <- if (!is.null(pk)) paste(pk$tabelle, pk$spalte, sep = "|") else
+    paste(beziehungen$pk_tabelle, beziehungen$pk_spalte, sep = "|")
   h  <- cbind(
     ifelse(spalten$access_typ %in% "COUNTER", "AutoWert", NA),
-    ifelse(id %in% paste(beziehungen$pk_tabelle, beziehungen$pk_spalte, sep = "|"), "PK", NA),
+    ifelse(id %in% pk_id, "PK", NA),
     ifelse(id %in% paste(beziehungen$fk_tabelle, beziehungen$fk_spalte, sep = "|"), "FK", NA)
   )
   apply(h, 1, function(x) paste(stats::na.omit(x), collapse = ", "))

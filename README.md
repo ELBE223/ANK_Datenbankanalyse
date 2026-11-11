@@ -16,7 +16,8 @@ ANK_Datenbankanalyse/
 ├── config_vorlage.R             Vorlage -> als config_lokal.R kopieren
 ├── 00_struktur.R                Schritt 0: Struktur auslesen
 ├── R/
-│   └── funktionen.R             wiederverwendbare Hilfsfunktionen
+│   ├── funktionen.R             wiederverwendbare Hilfsfunktionen
+│   └── dao_metadaten.ps1        liest Beziehungen/Primärschlüssel über DAO
 └── Output/                      Ergebnisse (lokal, nicht in Git)
 ```
 
@@ -46,10 +47,13 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
    `config_lokal.R` (Kopie von `config_vorlage.R`) an und öffnet sie.
    `DB_PFAD` eintragen, speichern, erneut Source klicken.
 
-5. **Beziehungen lesbar machen** (nur nötig, damit `00_struktur.R` die in Access
-   definierten Beziehungen findet; am besten an einer Kopie der DB).
-   Vorher prüfen, ob es überhaupt welche gibt: *Datenbanktools → Beziehungen →
-   Alle Beziehungen*. Bleibt das Fenster leer, entfällt dieser Schritt.
+5. **Beziehungen und Primärschlüssel:** normalerweise nichts zu tun.
+   `00_struktur.R` liest sie über **DAO**, die Access-eigene Schnittstelle
+   (PowerShell-Skript `R/dao_metadaten.ps1`, ohne Makros, schreibgeschützt).
+   In der Konsole steht dann „Beziehungen und Primärschlüssel über DAO gelesen“.
+
+   Nur wenn dort „DAO nicht verfügbar“ steht, gibt es zwei Ersatzwege
+   (am besten an einer Kopie der DB):
 
    **Weg A – Leseberechtigung (braucht Makros):** Fehlt „Inhalt aktivieren“,
    ist die Datei meist als „aus dem Internet“ gesperrt: Access schließen,
@@ -80,7 +84,7 @@ Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
 - **Pakete immer mit pacman:** am Anfang jedes Skripts
   ```r
   if (!require("pacman")) install.packages("pacman")
-  pacman::p_load(DBI, odbc, writexl)
+  pacman::p_load(DBI, odbc, writexl, readxl, jsonlite)
   ```
   Fehlende Pakete werden automatisch installiert, vorhandene nur geladen.
 
@@ -99,12 +103,10 @@ Ergebnis: `Output/00_struktur.xlsx` mit drei Blättern:
 
 Dieselben Daten liegen als `Output/00_struktur.rds` für die nächsten Skripte vor.
 
-**Schlüssel-Hinweise** in der Spalte `schluessel`:
-`AutoWert` = Access-Datentyp COUNTER (meist Primärschlüssel),
-`PK` = wird von einer Beziehung referenziert, `FK` = verweist auf eine andere Tabelle.
-Der Access-ODBC-Treiber gibt Primärschlüssel nicht direkt aus. Eine exakte
-Übersicht aller Schlüssel und Indizes liefert Access selbst:
-*Datenbanktools → Datenbankdokumentierer*.
+**Schlüssel** in der Spalte `schluessel`:
+`PK` = Primärschlüssel (über DAO exakt; ohne DAO nur Näherung: Spalte, auf die
+eine Beziehung verweist), `FK` = Fremdschlüssel laut Beziehung,
+`AutoWert` = Access-Datentyp COUNTER.
 
 ## Typische Fehler
 
@@ -115,6 +117,7 @@ Der Access-ODBC-Treiber gibt Primärschlüssel nicht direkt aus. Eine exakte
 | `config_lokal.R wurde angelegt` | `DB_PFAD` in der geöffneten Datei eintragen, speichern, erneut Source |
 | `Datenbank nicht gefunden` | Pfad in `config_lokal.R` prüfen (Schrägstriche `/`, Dateiendung `.accdb`) |
 | `Paket ... wurde unter R Version ... erstellt` | harmlos, kann ignoriert werden |
+| `DAO nicht verfügbar: ...` | Meldung an Claude schicken; bis dahin Einrichtung Punkt 5, Weg A oder B |
 | `Beziehungen fehlen` | Einrichtung, Punkt 5 – die übrigen Ergebnisse sind trotzdem vollständig |
 | Access: `Die Makros in diesem Projekt sind deaktiviert` | Datei-Eigenschaften → **Zulassen** (Punkt 5, Weg A); sonst Weg B (Excel-Export) |
 | Datei gesperrt / `.laccdb` vorhanden | Access schließen und erneut ausführen |
