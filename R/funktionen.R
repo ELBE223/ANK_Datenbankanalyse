@@ -187,3 +187,108 @@ schluessel_hinweis <- function(spalten, beziehungen, pk = NULL) {
   )
   apply(h, 1, function(x) paste(stats::na.omit(x), collapse = ", "))
 }
+
+
+# =============================================================================
+# ER-Diagramm (01_erd.R)
+# =============================================================================
+
+# Beziehungen aus Spaltennamen ableiten ---------------------------------------
+# Namenskonvention der ANK-DB: fk_<tabelle>_id verweist auf <tabelle>.id
+# (Varianten: _objid statt _id, Tabellenname ohne "_tbd"). Findet Spalten, die
+# wie Fremdschlüssel heißen, für die in Access aber keine Beziehung definiert
+# ist. Nicht auflösbare Namen (z. B. fk_s3) werden ausgelassen.
+beziehungen_ableiten <- function(spalten, beziehungen, tabellen) {
+  fk <- spalten[startsWith(spalten$spalte, "fk_") & spalten$objekt %in% tabellen, ]
+  fk <- fk[!paste(fk$objekt, fk$spalte) %in% paste(beziehungen$fk_tabelle, beziehungen$fk_spalte), ]
+  name <- sub("_(id|objid)(_tmp)?$", "", sub("^fk_", "", fk$spalte))
+  ziel <- ifelse(name %in% tabellen, name,
+          ifelse(paste0(name, "_tbd") %in% tabellen, paste0(name, "_tbd"), NA))
+  ok <- !is.na(ziel)
+  pk <- spalten[grepl("PK", spalten$schluessel), ]
+  data.frame(
+    beziehung = rep("abgeleitet", sum(ok)), pk_tabelle = ziel[ok],
+    pk_spalte = pk$spalte[match(ziel[ok], pk$objekt)],
+    fk_tabelle = fk$objekt[ok], fk_spalte = fk$spalte[ok], art = rep("1:n", sum(ok)),
+    ref_integritaet = rep(FALSE, sum(ok)), kaskade_aendern = rep(FALSE, sum(ok)),
+    kaskade_loeschen = rep(FALSE, sum(ok)), row.names = NULL
+  )
+}
+
+
+# Rolle und Bereich je Tabelle --------------------------------------------------
+# Verknüpfung (n:m): höchstens 4 Spalten, mindestens 2 Fremdschlüssel und
+#                    wird selbst von keiner Tabelle referenziert
+# Werteliste:        Name endet auf "_tbd" (und ist keine Verknüpfung)
+# Bereich:           erstes passende Muster aus 'bereiche', sonst "Sonstiges"
+tabellen_rolle <- function(objekte, beziehungen) {
+  zaehlen <- function(x) as.vector(table(factor(x, levels = objekte$objekt)))
+  n_fk  <- zaehlen(beziehungen$fk_tabelle)
+  n_ref <- zaehlen(beziehungen$pk_tabelle[beziehungen$pk_tabelle != beziehungen$fk_tabelle])
+  ifelse(objekte$spalten <= 4 & n_fk >= 2 & n_ref == 0, "Verknuepfung",
+  ifelse(endsWith(objekte$objekt, "_tbd"), "Werteliste", "Tabelle"))
+}
+
+tabellen_bereich <- function(objekte, bereiche) {
+  b <- rep("Sonstiges", nrow(objekte))
+  for (i in rev(seq_along(bereiche))) b[grepl(bereiche[[i]], objekte$objekt)] <- names(bereiche)[i]
+  b
+}
+
+
+# DOT-Text für Graphviz/DiagrammeR erzeugen -----------------------------------
+# objekte braucht die Spalten objekt, datensaetze, rolle, bereich;
+# beziehungen zusätzlich die Spalte quelle ("Access" oder "abgeleitet").
+# Lesart: Strich-Ende = "1"-Seite, Krähenfuß = "n"-Seite.
+erd_dot <- function(objekte, beziehungen, spalten, farben) {
+  q <- function(x) paste0('"', gsub('"', '\\\\"', x), '"')
+
+  hover <- vapply(objekte$objekt, function(t) {
+    s <- spalten[spalten$objekt == t, ]
+    paste(paste0(s$spalte, ifelse(s$schluessel == "", "", paste0("  [", s$schluessel, "]"))),
+          collapse = "\\n")
+  }, character(1))
+  wl    <- objekte$rolle == "Werteliste"
+  farbe <- ifelse(wl, "#8c8c8c", farben[objekte$bereich])
+  fill  <- ifelse(wl, "#f0f0ee", paste0(farbe, "38"))     # helle Tönung der Bereichsfarbe
+  label <- paste0(objekte$objekt, ifelse(objekte$rolle == "Verknuepfung", "  (n:m)", ""),
+                  "\\n", format(objekte$datensaetze, big.mark = ".", decimal.mark = ",", trim = TRUE),
+                  " Datensätze")
+
+  knoten <- sprintf("%s [label=%s, color=%s, fillcolor=%s, style=%s, penwidth=%s, tooltip=%s]",
+    q(objekte$objekt), q(label), q(farbe), q(fill),
+    q(paste0(ifelse(objekte$rolle == "Verknuepfung", "rounded,", ""), "filled",
+             ifelse(objekte$datensaetze %in% 0, ",dashed", ""))),
+    ifelse(wl, "1", "1.6"), q(hover))
+
+  abg <- beziehungen$quelle == "abgeleitet"
+  kanten <- sprintf("%s -> %s [style=%s, color=%s, tooltip=%s]",
+    q(beziehungen$pk_tabelle), q(beziehungen$fk_tabelle),
+    ifelse(abg, "dotted", ifelse(beziehungen$ref_integritaet, "solid", "dashed")),
+    ifelse(abg, q("#6250d6"), q("#6b6b6b")),
+    q(paste0(beziehungen$fk_tabelle, ".", beziehungen$fk_spalte, "  ->  ",
+             beziehungen$pk_tabelle, ".", beziehungen$pk_spalte,
+             ifelse(abg, "  (nicht in Access definiert)", ""))))
+
+  legende <- c(
+    "subgraph cluster_legende {", 'label="Legende"; fontsize=12; color="#bbbbbb"; style=rounded;',
+    sprintf('"L_%s" [label=%s, color=%s, fillcolor=%s, style=filled, penwidth=1.6];',
+            names(farben), q(names(farben)), q(farben), q(paste0(farben, "38"))),
+    '"L_Werteliste" [label="Werteliste (_tbd)", color="#8c8c8c", fillcolor="#f0f0ee", style=filled];',
+    sprintf('"L_Text" [shape=plaintext, style="", fontsize=10, label=%s];', q(paste(
+      "Strich = 1-Seite, Krähenfuß = n-Seite",
+      "durchgezogen = Beziehung mit ref. Integrität",
+      "gestrichelt = Beziehung ohne ref. Integrität",
+      "gepunktet (violett) = nur aus Spaltenname abgeleitet",
+      "abgerundet = Verknüpfungstabelle (n:m)",
+      "gestrichelter Rahmen = Tabelle ohne Datensätze",
+      "Maus über Tabelle/Linie = Spalten bzw. Schlüssel\\l", sep = "\\l"))),
+    "}")
+
+  paste(c(
+    "digraph ERD {",
+    'graph [rankdir=LR, ranksep=1.1, nodesep=0.18, fontname="Helvetica"];',
+    'node  [shape=box, fontname="Helvetica", fontsize=11, fontcolor="#1f1f1f", margin="0.15,0.06"];',
+    'edge  [dir=both, arrowtail=tee, arrowhead=crow, arrowsize=0.7, penwidth=1.1];',
+    knoten, kanten, legende, "}"), collapse = "\n")
+}

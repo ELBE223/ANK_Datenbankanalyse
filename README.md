@@ -15,14 +15,15 @@ ANK_Datenbankanalyse/
 ├── ANK_Datenbankanalyse.Rproj   RStudio-Projekt (immer hierüber öffnen)
 ├── config_vorlage.R             Vorlage -> als config_lokal.R kopieren
 ├── 00_struktur.R                Schritt 0: Struktur auslesen
+├── 01_erd.R                     Schritt 1: ER-Diagramm
 ├── R/
 │   ├── funktionen.R             wiederverwendbare Hilfsfunktionen
 │   └── dao_metadaten.ps1        liest Beziehungen/Primärschlüssel über DAO
 └── Output/                      Ergebnisse (lokal, nicht in Git)
 ```
 
-Geplant: `01_erd.R` (ER-Diagramm), `02_profiling.R` (Datenqualität),
-`tests/testthat/` (automatisierte Prüfungen), HTML-Prüfbericht.
+Geplant: `02_profiling.R` (Datenqualität), `tests/testthat/` (automatisierte
+Prüfungen), HTML-Prüfbericht.
 
 ## Einrichtung (einmalig)
 
@@ -107,6 +108,24 @@ Dieselben Daten liegen als `Output/00_struktur.rds` für die nächsten Skripte v
 `PK` = Primärschlüssel (über DAO exakt; ohne DAO nur Näherung: Spalte, auf die
 eine Beziehung verweist), `FK` = Fremdschlüssel laut Beziehung,
 `AutoWert` = Access-Datentyp COUNTER.
+
+## Schritt 1: ER-Diagramm
+
+`01_erd.R` öffnen und **Source** klicken (braucht nur `Output/00_struktur.rds`,
+keinen Datenbankzugriff). Das Diagramm erscheint im Viewer-Fenster von RStudio
+und wird als `Output/01_erd.html` gespeichert (im Browser öffnen, zoomen).
+
+- **Farbe** = fachlicher Bereich, **grau** = Werteliste (`_tbd`).
+  Die Bereiche stehen oben im Skript (`BEREICHE`) und können angepasst werden.
+- **Linie**: Strich = 1-Seite, Krähenfuß = n-Seite; gestrichelt = ohne
+  referentielle Integrität; **violett gepunktet** = in Access nicht definiert,
+  nur aus dem Spaltennamen `fk_<tabelle>_id` abgeleitet.
+- **Maus über eine Tabelle** zeigt alle Spalten mit Schlüsseln, über eine
+  Linie die verbundenen Spalten.
+- `MIT_HIST <- TRUE` zeigt zusätzlich die Historien-Tabellen (`*_hist`).
+
+Zusätzlich: `Output/01_beziehungen_abgeleitet.csv` (fk_-Spalten ohne Beziehung
+in Access) und `Output/01_erd.gv` (Diagramm als Graphviz-Text).
 
 ## Typische Fehler
 
